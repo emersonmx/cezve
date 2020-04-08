@@ -1,90 +1,107 @@
-import json
-from werkzeug.wrappers import Request, Response
+import simplejson as json
+from werkzeug.wrappers import Request as BaseRequest
+from werkzeug.wrappers import Response as BaseResponse
+from werkzeug.wrappers.json import JSONMixin
+
+
+class Request(BaseRequest, JSONMixin):
+    pass
+
+
+class Response(BaseResponse, JSONMixin):
+    pass
+
+
+def get_json(data):
+    try:
+        return json.dumps(data)
+    except (TypeError, OverflowError):
+        return None
 
 
 class Router(object):
     def __init__(self):
         self.routes = {}
 
-    def get(self, path, callback):
+    def get(self, expr, callback):
         routes = self.routes.setdefault('get', {})
-        routes[path] = callback
+        routes[expr] = callback
         return self
 
-    def post(self, path, callback):
+    def post(self, expr, callback):
         routes = self.routes.setdefault('post', {})
-        routes[path] = callback
+        routes[expr] = callback
         return self
 
-    def put(self, path, callback):
+    def put(self, expr, callback):
         routes = self.routes.setdefault('put', {})
-        routes[path] = callback
+        routes[expr] = callback
         return self
 
-    def patch(self, path, callback):
+    def patch(self, expr, callback):
         routes = self.routes.setdefault('patch', {})
-        routes[path] = callback
+        routes[expr] = callback
         return self
 
-    def delete(self, path, callback):
+    def delete(self, expr, callback):
         routes = self.routes.setdefault('delete', {})
-        routes[path] = callback
+        routes[expr] = callback
         return self
 
-    def options(self, path, callback):
+    def options(self, expr, callback):
         routes = self.routes.setdefault('options', {})
-        routes[path] = callback
+        routes[expr] = callback
         return self
 
-    def match(self, methods, path, callback):
+    def match(self, methods, expr, callback):
         for method in methods:
-            getattr(self, method)(path, callback)
+            getattr(self, method.lower())(expr, callback)
         return self
 
-    def any(self, path, callback):
+    def any(self, expr, callback):
         methods = ['get', 'post', 'put', 'patch', 'delete', 'options']
-        self.match(methods, path, callback)
+        self.match(methods, expr, callback)
         return self
 
-    def _get_callback(self, method, path):
+    def _get_callback(self, method, expr):
         routes = self.routes.get(method, {})
-        return routes.get(path, None)
+        return routes.get(expr, None)
 
 
 class Cezve(object):
-    def __init__(self):
-        self.router = Router()
+    def __init__(self, router=Router()):
+        self.router = router
 
-    def get(self, path, callback):
-        self.router.get(path, callback)
+    def get(self, expr, callback):
+        self.router.get(expr, callback)
         return self
 
-    def post(self, path, callback):
-        self.router.post(path, callback)
+    def post(self, expr, callback):
+        self.router.post(expr, callback)
         return self
 
-    def put(self, path, callback):
-        self.router.put(path, callback)
+    def put(self, expr, callback):
+        self.router.put(expr, callback)
         return self
 
-    def patch(self, path, callback):
-        self.router.patch(path, callback)
+    def patch(self, expr, callback):
+        self.router.patch(expr, callback)
         return self
 
-    def delete(self, path, callback):
-        self.router.delete(path, callback)
+    def delete(self, expr, callback):
+        self.router.delete(expr, callback)
         return self
 
-    def options(self, path, callback):
-        self.router.options(path, callback)
+    def options(self, expr, callback):
+        self.router.options(expr, callback)
         return self
 
-    def match(self, methods, path, callback):
-        self.router.match(methods, path, callback)
+    def match(self, methods, expr, callback):
+        self.router.match(methods, expr, callback)
         return self
 
-    def any(self, path, callback):
-        self.router.any(path, callback)
+    def any(self, expr, callback):
+        self.router.any(expr, callback)
         return self
 
     def __call__(self, environ, start_response):
@@ -93,10 +110,19 @@ class Cezve(object):
 
         if isinstance(response, str):
             response = Response(response)
-        elif isinstance(response, dict):
-            response = Response(json.dumps(response))
+            response.content_type = 'text/html'
+            return response(environ, start_response)
 
-        return response(environ, start_response)
+        if isinstance(response, BaseResponse):
+            return response(environ, start_response)
+
+        json_data = get_json(response)
+        if json_data:
+            response = Response(json_data)
+            response.content_type = 'application/json'
+            return response(environ, start_response)
+
+        # raise error
 
     def _dispatch_request(self, request):
         method = request.method.lower()
