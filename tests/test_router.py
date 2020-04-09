@@ -10,4 +10,4 @@ def action():
 def test_basic_route():
     router = Router()
     router.route(uri, action)
-    assert router.get_action(uri) == action
+    assert router.routes.get(uri) == action

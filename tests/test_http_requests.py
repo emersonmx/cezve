@@ -10,7 +10,7 @@ def test_html_response():
     client = Client(app, Response)
     resp = client.get('/test')
 
-    assert resp.content_type == 'text/html'
+    assert resp.content_type == 'text/plain; charset=utf-8'
     assert resp.data == b'test'
 
 
@@ -24,18 +24,6 @@ def test_json_response():
 
     assert resp.is_json
     assert resp.json == {'test': 'valid'}
-
-
-def test_numeric_response():
-    app = Cezve()
-    router = app.router
-    router.route('/test', lambda _: 42)
-
-    client = Client(app, Response)
-    resp = client.get('/test')
-
-    assert resp.is_json
-    assert resp.json == 42
 
 
 def test_response():
