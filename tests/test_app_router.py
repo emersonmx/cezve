@@ -1,65 +1,44 @@
-from cezve import Cezve
+from cezve import Router
 
-path = '/test'
+uri = '/test'
 
 
-def callback():
+def action():
     return 'test'
 
 
-def test_delegated_get_setup():
-    app = Cezve()
-    app.get(path, callback)
-    router = app.router
-    assert router.routes['get'][path] == callback
+def test_delegate_get_setup():
+    router = Router()
+    router.get(uri, action)
+    assert router.get_action('GET', uri) == action
+    assert router.get_action('HEAD', uri) == action
 
 
-def test_delegated_post_setup():
-    app = Cezve()
-    app.post(path, callback)
-    router = app.router
-    assert router.routes['post'][path] == callback
+def test_delegate_post_setup():
+    router = Router()
+    router.post(uri, action)
+    assert router.get_action('POST', uri) == action
 
 
-def test_delegated_put_setup():
-    app = Cezve()
-    app.put(path, callback)
-    router = app.router
-    assert router.routes['put'][path] == callback
+def test_delegate_put_setup():
+    router = Router()
+    router.put(uri, action)
+    assert router.get_action('PUT', uri) == action
 
 
-def test_delegated_patch_setup():
-    app = Cezve()
-    app.patch(path, callback)
-    router = app.router
-    assert router.routes['patch'][path] == callback
+def test_delegate_patch_setup():
+    router = Router()
+    router.patch(uri, action)
+    assert router.get_action('PATCH', uri) == action
 
 
-def test_delegated_delete_setup():
-    app = Cezve()
-    app.delete(path, callback)
-    router = app.router
-    assert router.routes['delete'][path] == callback
+def test_delegate_delete_setup():
+    router = Router()
+    router.delete(uri, action)
+    assert router.get_action('DELETE', uri) == action
 
 
-def test_delegated_options_setup():
-    app = Cezve()
-    app.options(path, callback)
-    router = app.router
-    assert router.routes['options'][path] == callback
-
-
-def test_delegated_match_setup():
-    app = Cezve()
-    app.match(['get', 'post'], path, callback)
-    router = app.router
-    assert router.routes['get'][path] == callback
-    assert router.routes['post'][path] == callback
-
-
-def test_delegated_any_setup():
-    app = Cezve()
-    app.any(path, callback)
-    router = app.router
-    for m in router.routes:
-        assert router.routes[m][path] == callback
+def test_delegate_options_setup():
+    router = Router()
+    router.options(uri, action)
+    assert router.get_action('OPTIONS', uri) == action

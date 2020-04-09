@@ -1,7 +1,56 @@
+import re
 import simplejson as json
 from werkzeug.wrappers import Request as BaseRequest
 from werkzeug.wrappers import Response as BaseResponse
 from werkzeug.wrappers.json import JSONMixin
+
+
+class Router(object):
+    def __init__(self):
+        self.routes = {}
+        self._verbs = (
+            'GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'
+        )
+
+    def get(self, uri, action):
+        return self._add_route(('GET', 'HEAD'), uri, action)
+
+    def post(self, uri, action):
+        return self._add_route(('POST', ), uri, action)
+
+    def put(self, uri, action):
+        return self._add_route(('PUT', ), uri, action)
+
+    def patch(self, uri, action):
+        return self._add_route(('PATCH', ), uri, action)
+
+    def delete(self, uri, action):
+        return self._add_route(('DELETE', ), uri, action)
+
+    def options(self, uri, action):
+        return self._add_route(('OPTIONS', ), uri, action)
+
+    def get_action(self, method: str, uri: str):
+        get_methods = ('GET', 'HEAD')
+        method = get_methods if method in get_methods else (method, )
+        methods = self.routes.get(uri, {})
+        route = methods.get(method, {})
+        return route.get('action', None)
+
+    def _add_route(self, methods, uri, action):
+        route = self._create_route(methods, uri, action)
+        self.routes[uri] = {route['methods']: route}
+        return route
+
+    def _create_route(self, methods, uri, action):
+        return {'methods': methods, 'uri': uri, 'action': action}
+
+
+def get_json(data):
+    try:
+        return json.dumps(data)
+    except (TypeError, OverflowError):
+        return None
 
 
 class Request(BaseRequest, JSONMixin):
@@ -12,96 +61,32 @@ class Response(BaseResponse, JSONMixin):
     pass
 
 
-def get_json(data):
-    try:
-        return json.dumps(data)
-    except (TypeError, OverflowError):
-        return None
-
-
-class Router(object):
-    def __init__(self):
-        self.routes = {}
-
-    def get(self, expr, callback):
-        routes = self.routes.setdefault('get', {})
-        routes[expr] = callback
-        return self
-
-    def post(self, expr, callback):
-        routes = self.routes.setdefault('post', {})
-        routes[expr] = callback
-        return self
-
-    def put(self, expr, callback):
-        routes = self.routes.setdefault('put', {})
-        routes[expr] = callback
-        return self
-
-    def patch(self, expr, callback):
-        routes = self.routes.setdefault('patch', {})
-        routes[expr] = callback
-        return self
-
-    def delete(self, expr, callback):
-        routes = self.routes.setdefault('delete', {})
-        routes[expr] = callback
-        return self
-
-    def options(self, expr, callback):
-        routes = self.routes.setdefault('options', {})
-        routes[expr] = callback
-        return self
-
-    def match(self, methods, expr, callback):
-        for method in methods:
-            getattr(self, method.lower())(expr, callback)
-        return self
-
-    def any(self, expr, callback):
-        methods = ['get', 'post', 'put', 'patch', 'delete', 'options']
-        self.match(methods, expr, callback)
-        return self
-
-    def _get_callback(self, method, expr):
-        routes = self.routes.get(method, {})
-        return routes.get(expr, None)
-
-
 class Cezve(object):
     def __init__(self, router=Router()):
         self.router = router
 
-    def get(self, expr, callback):
-        self.router.get(expr, callback)
+    def get(self, uri, action):
+        self.router.get(uri, action)
         return self
 
-    def post(self, expr, callback):
-        self.router.post(expr, callback)
+    def post(self, uri, action):
+        self.router.post(uri, action)
         return self
 
-    def put(self, expr, callback):
-        self.router.put(expr, callback)
+    def put(self, uri, action):
+        self.router.put(uri, action)
         return self
 
-    def patch(self, expr, callback):
-        self.router.patch(expr, callback)
+    def patch(self, uri, action):
+        self.router.patch(uri, action)
         return self
 
-    def delete(self, expr, callback):
-        self.router.delete(expr, callback)
+    def delete(self, uri, action):
+        self.router.delete(uri, action)
         return self
 
-    def options(self, expr, callback):
-        self.router.options(expr, callback)
-        return self
-
-    def match(self, methods, expr, callback):
-        self.router.match(methods, expr, callback)
-        return self
-
-    def any(self, expr, callback):
-        self.router.any(expr, callback)
+    def options(self, uri, action):
+        self.router.options(uri, action)
         return self
 
     def __call__(self, environ, start_response):
@@ -125,9 +110,9 @@ class Cezve(object):
         # raise error
 
     def _dispatch_request(self, request):
-        method = request.method.lower()
-        callback = self.router._get_callback(method, request.path)
-        return callback(request)
+        method = request.method.upper()
+        action = self.router.get_action(method, request.path)
+        return action(request)
 
     def run(self, **kwargs):
         host = kwargs.get('host', '127.0.0.1')

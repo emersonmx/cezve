@@ -1,57 +1,50 @@
 from cezve import Router
 
-path = '/test'
+uri = '/test'
 
 
-def callback():
+def action():
     return 'test'
 
 
 def test_get_setup():
     router = Router()
-    router.get(path, callback)
-    assert router.routes['get'][path] == callback
+    route = router.get(uri, action)
+    assert route == {'methods': ('GET', 'HEAD'), 'uri': uri, 'action': action}
+    assert router.get_action('GET', uri) == action
+    assert router.get_action('HEAD', uri) == action
 
 
 def test_post_setup():
     router = Router()
-    router.post(path, callback)
-    assert router.routes['post'][path] == callback
+    route = router.post(uri, action)
+    assert route == {'methods': ('POST', ), 'uri': uri, 'action': action}
+    assert router.get_action('POST', uri) == action
 
 
 def test_put_setup():
     router = Router()
-    router.put(path, callback)
-    assert router.routes['put'][path] == callback
+    route = router.put(uri, action)
+    assert route == {'methods': ('PUT', ), 'uri': uri, 'action': action}
+    assert router.get_action('PUT', uri) == action
 
 
 def test_patch_setup():
     router = Router()
-    router.patch(path, callback)
-    assert router.routes['patch'][path] == callback
+    route = router.patch(uri, action)
+    assert route == {'methods': ('PATCH', ), 'uri': uri, 'action': action}
+    assert router.get_action('PATCH', uri) == action
 
 
 def test_delete_setup():
     router = Router()
-    router.delete(path, callback)
-    assert router.routes['delete'][path] == callback
+    route = router.delete(uri, action)
+    assert route == {'methods': ('DELETE', ), 'uri': uri, 'action': action}
+    assert router.get_action('DELETE', uri) == action
 
 
 def test_options_setup():
     router = Router()
-    router.options(path, callback)
-    assert router.routes['options'][path] == callback
-
-
-def test_match_setup():
-    router = Router()
-    router.match(['get', 'post'], path, callback)
-    assert router.routes['get'][path] == callback
-    assert router.routes['post'][path] == callback
-
-
-def test_any_setup():
-    router = Router()
-    router.any(path, callback)
-    for m in router.routes:
-        assert router.routes[m][path] == callback
+    route = router.options(uri, action)
+    assert route == {'methods': ('OPTIONS', ), 'uri': uri, 'action': action}
+    assert router.get_action('OPTIONS', uri) == action
