@@ -10,7 +10,7 @@ class Router(object):
     def __init__(self):
         self.routes = {}
 
-    def route(self, uri, action):
+    def route(self, uri, action, **options):
         self.routes[uri] = action
 
     def dispatch_request(self, request):
@@ -37,14 +37,14 @@ class Cezve(object):
     def __init__(self, router=Router()):
         self.router = router
 
-    def route(self, uri, action=None):
+    def route(self, uri, action=None, **options):
         if action:
-            self.router.route(uri, action)
+            self.router.route(uri, action, **options)
             return
 
-        def decorator(func):
-            self.router.route(uri, func)
-            return func
+        def decorator(action):
+            self.router.route(uri, action, **options)
+            return action
 
         return decorator
 
