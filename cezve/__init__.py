@@ -1,4 +1,3 @@
-import re
 import simplejson as json
 from werkzeug.wrappers import Request as BaseRequest
 from werkzeug.wrappers import Response as BaseResponse
@@ -7,10 +6,10 @@ from werkzeug.wrappers.json import JSONMixin
 
 class Router(object):
     def __init__(self):
-        self.routes = {}
         self._verbs = (
             'GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'
         )
+        self.routes = {}
 
     def get(self, uri, action):
         return self._add_route(('GET', 'HEAD'), uri, action)
@@ -89,9 +88,15 @@ class Cezve(object):
         self.router.options(uri, action)
         return self
 
-    def __call__(self, environ, start_response):
+    def run(self, **kwargs):
+        host = kwargs.get('host', '127.0.0.1')
+        port = kwargs.get('port', 5000)
+        from werkzeug.serving import run_simple
+        run_simple(host, port, self, use_debugger=True, use_reloader=True)
+
+    def wsgi_app(self, environ, start_response):
         request = Request(environ)
-        response = self._dispatch_request(request)
+        response = self.dispatch_request(request)
 
         if isinstance(response, str):
             response = Response(response)
@@ -109,13 +114,10 @@ class Cezve(object):
 
         # raise error
 
-    def _dispatch_request(self, request):
+    def dispatch_request(self, request):
         method = request.method.upper()
         action = self.router.get_action(method, request.path)
         return action(request)
 
-    def run(self, **kwargs):
-        host = kwargs.get('host', '127.0.0.1')
-        port = kwargs.get('port', 5000)
-        from werkzeug.serving import run_simple
-        run_simple(host, port, self, use_debugger=True, use_reloader=True)
+    def __call__(self, environ, start_response):
+        return self.wsgi_app(environ, start_response)
