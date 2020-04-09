@@ -18,13 +18,6 @@ class Router(object):
         return action(request)
 
 
-def get_json(data):
-    try:
-        return json.dumps(data)
-    except (TypeError, OverflowError):
-        return None
-
-
 class Request(BaseRequest, JSONMixin):
     pass
 
