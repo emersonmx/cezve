@@ -34,6 +34,16 @@ class Cezve(object):
     def __init__(self, router=Router()):
         self.router = router
 
+    def route(self, uri, action=None):
+        if action:
+            self.router.route(uri, action)
+            return
+
+        def decorator(func):
+            self.router.route(uri, func)
+            return func
+        return decorator
+
     def run(self, **kwargs):
         host = kwargs.get('host', '127.0.0.1')
         port = kwargs.get('port', 5000)
