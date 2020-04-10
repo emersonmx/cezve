@@ -9,9 +9,78 @@ from werkzeug.routing import Map, Rule
 from werkzeug.exceptions import HTTPException
 
 
+class Request(BaseRequest, JSONMixin):
+    pass
+
+
+class Response(BaseResponse, JSONMixin):
+    pass
+
+
 def _endpoint_from_action(action):
     assert action is not None, "expected action if endpoint is not provided."
     return action.__name__
+
+
+def make_response(request, rv):
+    status = headers = None
+    if isinstance(rv, tuple):
+        len_rv = len(rv)
+        if len_rv == 3:
+            rv, status, header = rv
+        elif len_rv == 2:
+            if isinstance(rv[1], (Headers, dict, tuple, list)):
+                rv, headers = rv
+            else:
+                rv, status = rv
+        else:
+            raise TypeError(
+                "The action did not return a valid response tuple."
+                " The tuple must have the form (body, status, headers),"
+                " (body, status), or (body, headers)."
+            )
+
+    if rv is None:
+        raise TypeError(
+            f"The view function for {request.endpoint!r} did not"
+            " return a valid response. The function either returned"
+            " None or ended without a return statement."
+        )
+
+    if not isinstance(rv, Response):
+        if isinstance(rv, (str, bytes, bytearray)):
+            rv = Response(rv, status=status, headers=headers)
+            status = headers = None
+        elif isinstance(rv, dict):
+            rv = Response(json.dumps(rv), mimetype='application/json')
+        elif isinstance(rv, BaseResponse) or callable(rv):
+            try:
+                rv = Response.force_type(rv, request.environ)
+            except TypeError as e:
+                raise TypeError(
+                    f"{e}\nThe view function did not return a valid"
+                    " response. The return type must be a string,"
+                    " dict, tuple, Response instance, or WSGI"
+                    f" callable, but it was a {type(rv).__name__}."
+                ).with_traceback(sys.exc_info()[2])
+        else:
+            raise TypeError(
+                "The view function did not return a valid"
+                " response. The return type must be a string,"
+                " dict, tuple, Response instance, or WSGI"
+                f" callable, but it was a {type(rv).__name__}."
+            )
+
+    if status is not None:
+        if isinstance(status, (str, bytes, bytearray)):
+            rv.status = status
+        else:
+            rv.status_code = status
+
+    if headers:
+        rv.headers.extend(headers)
+
+    return rv
 
 
 class Router(object):
@@ -30,7 +99,6 @@ class Router(object):
 
         if action is not None:
             old_action = self.actions.get(endpoint)
-            print(old_action, action)
             if old_action is not None and old_action != action:
                 raise AssertionError(
                     "Action mapping is overwriting an existing"
@@ -45,18 +113,12 @@ class Router(object):
             action = self.actions[endpoint]
             sig = inspect.signature(action)
             if len(args) == len(sig.parameters):
-                return action(*args)
-            return action(request, **args)
+                rv = action(*args)
+            else:
+                rv = action(request, **args)
+            return make_response(request, rv)
         except HTTPException as e:
             return e
-
-
-class Request(BaseRequest, JSONMixin):
-    pass
-
-
-class Response(BaseResponse, JSONMixin):
-    pass
 
 
 class Cezve(object):
@@ -82,69 +144,8 @@ class Cezve(object):
 
     def wsgi_app(self, environ, start_response):
         request = Request(environ)
-        rv = self.router.dispatch_request(request)
-        response = self.make_response(request, rv)
+        response = self.router.dispatch_request(request)
         return response(environ, start_response)
-
-    def make_response(self, request, rv):
-        status = headers = None
-        if isinstance(rv, tuple):
-            len_rv = len(rv)
-            if len_rv == 3:
-                rv, status, header = rv
-            elif len_rv == 2:
-                if isinstance(rv[1], (Headers, dict, tuple, list)):
-                    rv, headers = rv
-                else:
-                    rv, status = rv
-            else:
-                raise TypeError(
-                    "The action did not return a valid response tuple."
-                    " The tuple must have the form (body, status, headers),"
-                    " (body, status), or (body, headers)."
-                )
-
-        if rv is None:
-            raise TypeError(
-                f"The view function for {request.endpoint!r} did not"
-                " return a valid response. The function either returned"
-                " None or ended without a return statement."
-            )
-
-        if not isinstance(rv, Response):
-            if isinstance(rv, (str, bytes, bytearray)):
-                rv = Response(rv, status=status, headers=headers)
-                status = headers = None
-            elif isinstance(rv, dict):
-                rv = Response(json.dumps(rv), mimetype='application/json')
-            elif isinstance(rv, BaseResponse) or callable(rv):
-                try:
-                    rv = Response.force_type(rv, request.environ)
-                except TypeError as e:
-                    raise TypeError(
-                        f"{e}\nThe view function did not return a valid"
-                        " response. The return type must be a string,"
-                        " dict, tuple, Response instance, or WSGI"
-                        f" callable, but it was a {type(rv).__name__}."
-                    ).with_traceback(sys.exc_info()[2])
-            else:
-                raise TypeError(
-                    "The view function did not return a valid"
-                    " response. The return type must be a string,"
-                    " dict, tuple, Response instance, or WSGI"
-                    f" callable, but it was a {type(rv).__name__}."
-                )
-
-        if status is not None:
-            if isinstance(status, (str, bytes, bytearray)):
-                rv.status = status
-            else:
-                rv.status_code = status
-
-        if headers:
-            rv.headers.extend(headers)
-
-        return rv
 
     def __call__(self, environ, start_response):
         return self.wsgi_app(environ, start_response)
