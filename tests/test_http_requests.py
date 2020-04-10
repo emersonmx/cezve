@@ -5,7 +5,7 @@ from cezve import Cezve, Response
 def test_html_response():
     app = Cezve()
     router = app.router
-    router.route('/test', lambda _: 'test')
+    router.route('/test', lambda: 'test')
 
     client = Client(app, Response)
     resp = client.get('/test')
@@ -17,7 +17,7 @@ def test_html_response():
 def test_json_response():
     app = Cezve()
     router = app.router
-    router.route('/test', lambda _: {'test': 'valid'})
+    router.route('/test', lambda: {'test': 'valid'})
 
     client = Client(app, Response)
     resp = client.get('/test')
@@ -30,7 +30,7 @@ def test_response():
     app = Cezve()
     response = Response('test')
     router = app.router
-    router.route('/test', lambda _: response)
+    router.route('/test', lambda: response)
 
     client = Client(app, Response)
     resp = client.get('/test')

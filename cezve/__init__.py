@@ -1,21 +1,54 @@
 import sys
 import simplejson as json
+import inspect
 from werkzeug.wrappers import Request as BaseRequest
 from werkzeug.wrappers import Response as BaseResponse
 from werkzeug.wrappers.json import JSONMixin
 from werkzeug.datastructures import Headers
+from werkzeug.routing import Map, Rule
+from werkzeug.exceptions import HTTPException
+
+
+def _endpoint_from_action(action):
+    assert action is not None, "expected action if endpoint is not provided."
+    return action.__name__
 
 
 class Router(object):
     def __init__(self):
-        self.routes = {}
+        self.url_map = Map()
+        self.actions = {}
 
     def route(self, uri, action, **options):
-        self.routes[uri] = action
+        endpoint = options.get('endpoint')
+        if endpoint is None:
+            endpoint = _endpoint_from_action(action)
+        options['endpoint'] = endpoint
+
+        rule = Rule(uri, **options)
+        self.url_map.add(rule)
+
+        if action is not None:
+            old_action = self.actions.get(endpoint)
+            print(old_action, action)
+            if old_action is not None and old_action != action:
+                raise AssertionError(
+                    "Action mapping is overwriting an existing"
+                    f" endpoint function: {endpoint}"
+                )
+            self.actions[endpoint] = action
 
     def dispatch_request(self, request):
-        action = self.routes.get(request.path)
-        return action(request)
+        adapter = self.url_map.bind_to_environ(request.environ)
+        try:
+            endpoint, args = adapter.match()
+            action = self.actions[endpoint]
+            sig = inspect.signature(action)
+            if len(args) == len(sig.parameters):
+                return action(*args)
+            return action(request, **args)
+        except HTTPException as e:
+            return e
 
 
 class Request(BaseRequest, JSONMixin):
@@ -27,17 +60,17 @@ class Response(BaseResponse, JSONMixin):
 
 
 class Cezve(object):
-    def __init__(self, router=Router()):
-        self.router = router
+    def __init__(self, router=None):
+        self.router = router if router else Router()
 
     def route(self, uri, action=None, **options):
         if action:
             self.router.route(uri, action, **options)
             return
 
-        def decorator(action):
-            self.router.route(uri, action, **options)
-            return action
+        def decorator(func):
+            self.router.route(uri, func, **options)
+            return func
 
         return decorator
 

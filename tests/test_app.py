@@ -3,7 +3,7 @@ from cezve import Cezve, Response
 
 
 def test_app_simple_route():
-    def action(_):
+    def action():
         return 'test'
 
     app = Cezve()
@@ -19,7 +19,7 @@ def test_app_decorated_route():
     app = Cezve()
 
     @app.route('/test')
-    def action(_):
+    def action():
         return 'test'
 
     client = Client(app, Response)
