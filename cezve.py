@@ -7,6 +7,7 @@ from werkzeug.datastructures import Headers
 from werkzeug.routing import Map, Rule
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.utils import validate_arguments
+from werkzeug.wsgi import ClosingIterator
 
 
 class Request(BaseRequest, JSONMixin):
@@ -22,6 +23,15 @@ def _endpoint_from_view_func(view_func):
         view_func is not None
     ), 'expected view func if endpoint is not provided.'
     return view_func.__name__
+
+
+def at_request_teardown(wsgi_app, teardown_list):
+    def func(environ, start_response):
+        return ClosingIterator(
+            wsgi_app(environ, start_response), teardown_list
+        )
+
+    return func
 
 
 def make_response(request, rv):

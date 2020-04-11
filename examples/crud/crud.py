@@ -5,8 +5,7 @@ from jinja2 import Environment, FileSystemLoader
 from werkzeug.utils import redirect
 from werkzeug.exceptions import NotFound
 from werkzeug.local import Local, LocalManager
-from werkzeug.wsgi import ClosingIterator
-from cezve import Cezve, Request, Response
+from cezve import Cezve, Request, Response, at_request_teardown
 
 local = Local()
 local_manager = LocalManager([local])
@@ -15,17 +14,6 @@ TEMPLATE_PATH = os.path.dirname(__file__)
 jinja_env = Environment(
     loader=FileSystemLoader(TEMPLATE_PATH), autoescape=True
 )
-
-
-class TeardownMiddleware(object):
-    def __init__(self, app, teardown_list=[]):
-        self.app = app
-        self.teardown_list = teardown_list if teardown_list else []
-
-    def __call__(self, environ, start_response):
-        return ClosingIterator(
-            self.app(environ, start_response), self.teardown_list
-        )
 
 
 def render_template(name, **context):
@@ -115,7 +103,7 @@ def destroy(content_id):
 
 
 app = Cezve()
-app.wsgi_app = TeardownMiddleware(app.wsgi_app, [close_db])
+app.wsgi_app = at_request_teardown(app.wsgi_app, [close_db])
 app.wsgi_app = local_manager.make_middleware(app.wsgi_app)
 app.route('/', index)
 app.route('/create', create)
