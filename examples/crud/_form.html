@@ -1,0 +1,11 @@
+{% set content = content if content else {} %}
+{% set title = content.get('title', '') %}
+{% set body = content.get('body', '') %}
+<div>
+    <label for="title">Title:</label>
+    <input type="text" name="title" id="title" value="{{ title }}">
+</div>
+<div>
+    <label for="body">Body:</label>
+    <textarea name="body" id="body" cols="30" rows="10">{{ body }}</textarea>
+</div>

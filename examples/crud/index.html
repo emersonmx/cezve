@@ -1,0 +1,64 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+    <div>
+        <h1>Contents</h1>
+        <div>
+            <a href="/create">Create</a>
+        </div>
+    </div>
+    <div>
+        {% if not contents %}
+            <p>No contents!</p>
+        {% else %}
+            <table>
+                <thead>
+                    <tr>
+                        <td>ID</td>
+                        <td>Title</td>
+                        <td>Created at</td>
+                        <td>Updated at</td>
+                        <td>Actions</td>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for content in contents.values() %}
+                        <tr>
+                            <td>{{ content['id'] }}</td>
+                            <td>{{ content['title'] }}</td>
+                            <td>{{ content['created_at'] }}</td>
+                            <td>{{ content['updated_at'] }}</td>
+                            <td>
+                                <a href="/{{ content['id'] }}/edit">Edit</a> |
+                                <a href="/{{ content['id'] }}" data-delete>Delete</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+
+<script>
+    $(function () {
+        $('[data-delete]').each(function (_, l) {
+            $(l).click(function (e) {
+                e.preventDefault();
+                var target = $(e.target);
+                $.ajax({
+                    url: target.attr('href'),
+                    type: 'DELETE',
+                    success: function (result) {
+                        alert('Content deleted!');
+                        window.location.href = '/';
+                    }
+                });
+            });
+        })
+    });
+</script>
+{% endblock %}

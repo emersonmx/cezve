@@ -1,0 +1,17 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+    <div>
+        <h1>Edit {{ content['title'] }}</h1>
+        <p>
+            <a href="/">Voltar</a>
+        </p>
+    </div>
+    <div>
+        <form action="/{{ content['id'] }}" method="post">
+            <input type="hidden" name="_method" value="PUT">
+            {% include '_form.html' %}
+            <button type="submit">Save</button>
+        </form>
+    </div>
+{% endblock %}
