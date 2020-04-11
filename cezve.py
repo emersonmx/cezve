@@ -20,7 +20,7 @@ class Response(BaseResponse, JSONMixin):
 def _endpoint_from_view_func(view_func):
     assert (
         view_func is not None
-    ), "expected view func if endpoint is not provided."
+    ), 'expected view func if endpoint is not provided.'
     return view_func.__name__
 
 
@@ -37,16 +37,16 @@ def make_response(request, rv):
                 rv, status = rv
         else:
             raise TypeError(
-                "The view func did not return a valid response tuple."
-                " The tuple must have the form (body, status, headers),"
-                " (body, status), or (body, headers)."
+                'The view func did not return a valid response tuple.'
+                ' The tuple must have the form (body, status, headers),'
+                ' (body, status), or (body, headers).'
             )
 
     if rv is None:
         raise TypeError(
-            f"The view function for {request.endpoint!r} did not"
-            " return a valid response. The function either returned"
-            " None or ended without a return statement."
+            f'The view function for {request.endpoint!r} did not'
+            ' return a valid response. The function either returned'
+            ' None or ended without a return statement.'
         )
 
     if not isinstance(rv, Response):
@@ -60,17 +60,17 @@ def make_response(request, rv):
                 rv = Response.force_type(rv, request.environ)
             except TypeError as e:
                 raise TypeError(
-                    f"{e}\nThe view function did not return a valid"
-                    " response. The return type must be a string,"
-                    " dict, tuple, Response instance, or WSGI"
-                    f" callable, but it was a {type(rv).__name__}."
+                    f'{e}\nThe view function did not return a valid'
+                    ' response. The return type must be a string,'
+                    ' dict, tuple, Response instance, or WSGI'
+                    f' callable, but it was a {type(rv).__name__}.'
                 ).with_traceback(sys.exc_info()[2])
         else:
             raise TypeError(
-                "The view function did not return a valid"
-                " response. The return type must be a string,"
-                " dict, tuple, Response instance, or WSGI"
-                f" callable, but it was a {type(rv).__name__}."
+                'The view function did not return a valid'
+                ' response. The return type must be a string,'
+                ' dict, tuple, Response instance, or WSGI'
+                f' callable, but it was a {type(rv).__name__}.'
             )
 
     if status is not None:
@@ -89,6 +89,7 @@ class Router(object):
     def __init__(self):
         self.url_map = Map()
         self.view_functions = {}
+        self.default_methods = frozenset({'GET', 'HEAD'})
 
     def route(self, rule, view_func, **options):
         endpoint = options.get('endpoint')
@@ -96,23 +97,41 @@ class Router(object):
             endpoint = _endpoint_from_view_func(view_func)
         options['endpoint'] = endpoint
 
-        rule = Rule(rule, **options)
+        methods = options.pop('methods', self.default_methods)
+        if isinstance(methods, str):
+            raise TypeError(
+                'Allowed methods must be a list of strings, for'
+                ' example: app.route(..., methods=["POST"])'
+            )
+        methods = frozenset({item.upper() for item in methods})
+
+        rule = Rule(rule, methods=methods, **options)
         self.url_map.add(rule)
 
         if view_func is not None:
             old_view_func = self.view_functions.get(endpoint)
             if old_view_func is not None and old_view_func != view_func:
                 raise AssertionError(
-                    "View func mapping is overwriting an existing"
-                    f" endpoint function: {endpoint}"
+                    'View func mapping is overwriting an existing'
+                    f' endpoint function: {endpoint}'
                 )
-            self.view_functions[endpoint] = view_func
+            self.view_functions[(methods, endpoint)] = view_func
 
     def dispatch_request(self, request):
         adapter = self.url_map.bind_to_environ(request.environ)
         try:
-            endpoint, arguments = adapter.match()
-            view_func = self.view_functions[endpoint]
+            method = request.method
+            endpoint, arguments = adapter.match(method=method)
+
+            if method in self.default_methods:
+                method = self.default_methods
+            else:
+                method = frozenset({method})
+
+            print('#' * 10 + '\n')
+            print(self.view_functions)
+            print(method, endpoint)
+            view_func = self.view_functions[(method, endpoint)]
             args, kwargs = validate_arguments(
                 view_func, (request, ), arguments.copy()
             )

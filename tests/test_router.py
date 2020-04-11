@@ -10,4 +10,5 @@ def action():
 def test_basic_route():
     router = Router()
     router.route(rule, action)
-    assert router.view_functions.get('action') == action
+    key = (router.default_methods, 'action')
+    assert router.view_functions.get(key) == action
