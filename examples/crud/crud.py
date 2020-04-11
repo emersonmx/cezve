@@ -71,14 +71,14 @@ def destroy(content_id):
 
     contents.pop(content_id)
 
-    return redirect('/')
+    return Response(status=204)
 
 
 app = Cezve()
-app.route('/', store, methods=('POST', ))
 app.route('/', index)
 app.route('/create', create)
-app.route('/<int:content_id>', update, methods=('POST', ))
-app.route('/<int:content_id>', destroy, methods=('DELETE', ))
+app.route('/', store, methods=['post'])
 app.route('/<int:content_id>/edit', edit)
+app.route('/<int:content_id>', update, methods=['post'])
+app.route('/<int:content_id>', destroy, methods=['delete'])
 app.run()

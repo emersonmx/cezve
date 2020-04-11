@@ -53,9 +53,9 @@
                     url: target.attr('href'),
                     type: 'DELETE',
                     success: function (result) {
-                        alert('Content deleted!');
                         window.location.href = '/';
-                    }
+                        alert('Content deleted!');
+                    },
                 });
             });
         })

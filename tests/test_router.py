@@ -17,7 +17,5 @@ def test_basic_route():
 
 def test_if_methods_is_string():
     router = Router()
-    with pytest.raises(
-        TypeError, match='example: app.route'
-    ):
+    with pytest.raises(TypeError, match='example: app.route'):
         router.route('/', lambda: 'test', methods='get')
