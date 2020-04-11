@@ -28,13 +28,6 @@ class TeardownMiddleware(object):
         )
 
 
-def make_teardown_middleware(func):
-    def application(environ, start_response):
-        return ClosingIterator(func(environ, start_response), [close_db])
-
-    return application
-
-
 def render_template(name, **context):
     t = jinja_env.get_template(name)
     return Response(t.render(context), mimetype='text/html')
