@@ -1,12 +1,12 @@
 import sys
 import simplejson as json
-import inspect
 from werkzeug.wrappers import Request as BaseRequest
 from werkzeug.wrappers import Response as BaseResponse
 from werkzeug.wrappers.json import JSONMixin
 from werkzeug.datastructures import Headers
 from werkzeug.routing import Map, Rule
 from werkzeug.exceptions import HTTPException
+from werkzeug.utils import validate_arguments
 
 
 class Request(BaseRequest, JSONMixin):
@@ -111,13 +111,15 @@ class Router(object):
     def dispatch_request(self, request):
         adapter = self.url_map.bind_to_environ(request.environ)
         try:
-            endpoint, args = adapter.match()
+            endpoint, arguments = adapter.match()
             view_func = self.view_functions[endpoint]
-            sig = inspect.signature(view_func)
-            if len(args) == len(sig.parameters):
-                rv = view_func(**args)
+            args, kwargs = validate_arguments(
+                view_func, (request, ), arguments.copy()
+            )
+            if len(arguments) == len(args) + len(kwargs):
+                rv = view_func(**arguments)
             else:
-                rv = view_func(request, **args)
+                rv = view_func(request, **arguments)
             return make_response(request, rv)
         except HTTPException as e:
             return e

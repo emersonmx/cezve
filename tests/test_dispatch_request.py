@@ -1,4 +1,5 @@
 import pytest
+from werkzeug.utils import ArgumentValidationError
 from werkzeug.test import Client
 from cezve import Cezve, Request, Response
 
@@ -80,6 +81,6 @@ def test_if_args_keys_are_the_same():
     client = Client(app, Response)
     app.route('/test/<key1>/<key2>', lambda a, b: 'ignore')
     with pytest.raises(
-        TypeError, match="got an unexpected keyword argument 'key"
+        ArgumentValidationError, match='function arguments invalid'
     ):
         client.get('/test/hello/world')
