@@ -104,18 +104,21 @@ class Router(object):
                 ' example: app.route(..., methods=["POST"])'
             )
         methods = frozenset({item.upper() for item in methods})
+        if methods & self.default_methods:
+            methods = methods | self.default_methods
 
         rule = Rule(rule, methods=methods, **options)
         self.url_map.add(rule)
 
         if view_func is not None:
-            old_view_func = self.view_functions.get(endpoint)
+            key = (methods, endpoint)
+            old_view_func = self.view_functions.get(key)
             if old_view_func is not None and old_view_func != view_func:
                 raise AssertionError(
                     'View func mapping is overwriting an existing'
                     f' endpoint function: {endpoint}'
                 )
-            self.view_functions[(methods, endpoint)] = view_func
+            self.view_functions[key] = view_func
 
     def dispatch_request(self, request):
         adapter = self.url_map.bind_to_environ(request.environ)
@@ -128,9 +131,6 @@ class Router(object):
             else:
                 method = frozenset({method})
 
-            print('#' * 10 + '\n')
-            print(self.view_functions)
-            print(method, endpoint)
             view_func = self.view_functions[(method, endpoint)]
             args, kwargs = validate_arguments(
                 view_func, (request, ), arguments.copy()

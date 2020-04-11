@@ -84,3 +84,20 @@ def test_if_args_keys_are_the_same():
         ArgumentValidationError, match='function arguments invalid'
     ):
         client.get('/test/hello/world')
+
+
+def test_if_head_and_get_method_works():
+    app = Cezve()
+    client = Client(app, Response)
+    app.route('/get', lambda: 'get', methods=['get'], endpoint='get')
+    app.route('/head', lambda: 'head', methods=['head'], endpoint='head')
+
+    resp = client.get('/get')
+    assert resp.data == b'get'
+    resp = client.head('/get')
+    assert resp.status_code == 200
+
+    resp = client.get('/head')
+    assert resp.data == b'head'
+    resp = client.head('/head')
+    assert resp.status_code == 200
