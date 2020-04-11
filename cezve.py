@@ -115,7 +115,7 @@ class Router(object):
             view_func = self.view_functions[endpoint]
             sig = inspect.signature(view_func)
             if len(args) == len(sig.parameters):
-                rv = view_func(*args)
+                rv = view_func(**args)
             else:
                 rv = view_func(request, **args)
             return make_response(request, rv)
