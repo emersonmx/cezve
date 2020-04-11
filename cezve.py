@@ -5,7 +5,7 @@ from werkzeug.wrappers import Response as BaseResponse
 from werkzeug.wrappers.json import JSONMixin
 from werkzeug.datastructures import Headers
 from werkzeug.routing import Map, Rule
-from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.utils import validate_arguments
 
 
@@ -90,6 +90,7 @@ class Router(object):
         self.url_map = Map()
         self.view_functions = {}
         self.default_methods = frozenset({'GET', 'HEAD'})
+        self._fallback_func = None
 
     def route(self, rule, view_func, **options):
         endpoint = options.get('endpoint')
@@ -120,6 +121,9 @@ class Router(object):
                 )
             self.view_functions[key] = view_func
 
+    def fallback(self, func):
+        self._fallback_func = func
+
     def dispatch_request(self, request):
         adapter = self.url_map.bind_to_environ(request.environ)
         try:
@@ -140,6 +144,10 @@ class Router(object):
             else:
                 rv = view_func(request, **arguments)
             return make_response(request, rv)
+        except NotFound as e:
+            if self._fallback_func:
+                return make_response(request, self._fallback_func())
+            return e
         except HTTPException as e:
             return e
 
