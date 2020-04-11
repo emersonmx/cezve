@@ -54,14 +54,12 @@ def update(req, content_id):
     if content_id not in contents:
         raise NotFound
 
-    contents[content_id].update({
-        'title':
-        req.form['title'],
-        'body':
-        req.form['body'],
-        'updated_at':
-        datetime.today().strftime('%Y-%m-%d %H:%M:%S')
-    })
+    new_content = {
+        'title': req.form['title'],
+        'body': req.form['body'],
+        'updated_at': datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+    }
+    contents[content_id].update(new_content)
 
     return redirect('/{}/edit'.format(content_id))
 
