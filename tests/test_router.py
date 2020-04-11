@@ -1,6 +1,6 @@
 from cezve import Router
 
-uri = '/test'
+rule = '/test'
 
 
 def action():
@@ -9,5 +9,5 @@ def action():
 
 def test_basic_route():
     router = Router()
-    router.route(uri, action)
-    assert router.actions.get('action') == action
+    router.route(rule, action)
+    assert router.view_functions.get('action') == action

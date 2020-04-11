@@ -17,9 +17,9 @@ class Response(BaseResponse, JSONMixin):
     pass
 
 
-def _endpoint_from_action(action):
-    assert action is not None, "expected action if endpoint is not provided."
-    return action.__name__
+def _endpoint_from_view_func(view_func):
+    assert view_func is not None, "expected view func if endpoint is not provided."
+    return view_func.__name__
 
 
 def make_response(request, rv):
@@ -35,7 +35,7 @@ def make_response(request, rv):
                 rv, status = rv
         else:
             raise TypeError(
-                "The action did not return a valid response tuple."
+                "The view func did not return a valid response tuple."
                 " The tuple must have the form (body, status, headers),"
                 " (body, status), or (body, headers)."
             )
@@ -86,36 +86,36 @@ def make_response(request, rv):
 class Router(object):
     def __init__(self):
         self.url_map = Map()
-        self.actions = {}
+        self.view_functions = {}
 
-    def route(self, uri, action, **options):
+    def route(self, rule, view_func, **options):
         endpoint = options.get('endpoint')
         if endpoint is None:
-            endpoint = _endpoint_from_action(action)
+            endpoint = _endpoint_from_view_func(view_func)
         options['endpoint'] = endpoint
 
-        rule = Rule(uri, **options)
+        rule = Rule(rule, **options)
         self.url_map.add(rule)
 
-        if action is not None:
-            old_action = self.actions.get(endpoint)
-            if old_action is not None and old_action != action:
+        if view_func is not None:
+            old_view_func = self.view_functions.get(endpoint)
+            if old_view_func is not None and old_view_func != view_func:
                 raise AssertionError(
-                    "Action mapping is overwriting an existing"
+                    "View func mapping is overwriting an existing"
                     f" endpoint function: {endpoint}"
                 )
-            self.actions[endpoint] = action
+            self.view_functions[endpoint] = view_func
 
     def dispatch_request(self, request):
         adapter = self.url_map.bind_to_environ(request.environ)
         try:
             endpoint, args = adapter.match()
-            action = self.actions[endpoint]
-            sig = inspect.signature(action)
+            view_func = self.view_functions[endpoint]
+            sig = inspect.signature(view_func)
             if len(args) == len(sig.parameters):
-                rv = action(*args)
+                rv = view_func(*args)
             else:
-                rv = action(request, **args)
+                rv = view_func(request, **args)
             return make_response(request, rv)
         except HTTPException as e:
             return e
@@ -125,13 +125,13 @@ class Cezve(object):
     def __init__(self, router=None):
         self.router = router if router else Router()
 
-    def route(self, uri, action=None, **options):
-        if action:
-            self.router.route(uri, action, **options)
+    def route(self, rule, view_func=None, **options):
+        if view_func:
+            self.router.route(rule, view_func, **options)
             return
 
         def decorator(func):
-            self.router.route(uri, func, **options)
+            self.router.route(rule, func, **options)
             return func
 
         return decorator
