@@ -1,9 +1,15 @@
 import os
+import sqlite3
 from datetime import datetime
-from cezve import Cezve, Request, Response
 from jinja2 import Environment, FileSystemLoader
 from werkzeug.utils import redirect
 from werkzeug.exceptions import NotFound
+from werkzeug.local import Local, LocalManager
+from werkzeug.wsgi import ClosingIterator
+from cezve import Cezve, Request, Response
+
+local = Local()
+local_manager = LocalManager([local])
 
 TEMPLATE_PATH = os.path.dirname(__file__)
 jinja_env = Environment(
@@ -11,17 +17,47 @@ jinja_env = Environment(
 )
 
 
+class TeardownMiddleware(object):
+    def __init__(self, app, teardown_list=[]):
+        self.app = app
+        self.teardown_list = teardown_list if teardown_list else []
+
+    def __call__(self, environ, start_response):
+        return ClosingIterator(
+            self.app(environ, start_response), self.teardown_list
+        )
+
+
+def make_teardown_middleware(func):
+    def application(environ, start_response):
+        return ClosingIterator(func(environ, start_response), [close_db])
+
+    return application
+
+
 def render_template(name, **context):
     t = jinja_env.get_template(name)
     return Response(t.render(context), mimetype='text/html')
 
 
-next_id = 1
-contents = {}
+def get_db():
+    if 'db' not in local:
+        local.db = sqlite3.connect(
+            'crud.sqlite', detect_types=sqlite3.PARSE_DECLTYPES
+        )
+        local.db.row_factory = sqlite3.Row
+
+    return local.db
+
+
+def close_db():
+    db = getattr(local, 'db', None)
+    if db is not None:
+        db.close()
 
 
 def index():
-    global contents
+    contents = get_db().execute('SELECT * FROM contents').fetchall()
     return render_template('index.html', contents=contents)
 
 
@@ -30,51 +66,64 @@ def create():
 
 
 def store(req: Request):
-    global next_id
-    global contents
-    contents[next_id] = {
-        'id': next_id,
-        'title': req.form['title'],
-        'body': req.form['body'],
-        'created_at': datetime.today().strftime('%Y-%m-%d %H:%M:%S')
-    }
-    next_id += 1
+    db = get_db()
+    db.execute(
+        'INSERT INTO contents (title, body, created_at) VALUES (?, ?, ?)', (
+            req.form['title'], req.form['body'],
+            datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+        )
+    )
+    db.commit()
     return redirect('/')
 
 
 def edit(req, content_id):
-    global contents
-    if content_id not in contents:
+    content = get_db().execute(
+        'SELECT * FROM contents WHERE id = ?', (content_id, )
+    ).fetchone()
+    if not content:
         raise NotFound
-    return render_template('edit.html', content=contents[content_id])
+    return render_template('edit.html', content=content)
 
 
 def update(req, content_id):
-    global contents
-    if content_id not in contents:
+    db = get_db()
+    content = db.execute(
+        'SELECT * FROM contents WHERE id = ?', (content_id, )
+    ).fetchone()
+    if not content:
         raise NotFound
 
-    new_content = {
-        'title': req.form['title'],
-        'body': req.form['body'],
-        'updated_at': datetime.today().strftime('%Y-%m-%d %H:%M:%S')
-    }
-    contents[content_id].update(new_content)
+    db.execute(
+        'UPDATE contents '
+        'SET title = ?, body = ?, updated_at = ?'
+        'WHERE id = ?', (
+            req.form['title'], req.form['body'],
+            datetime.today().strftime('%Y-%m-%d %H:%M:%S'), content_id
+        )
+    )
+    db.commit()
 
     return redirect('/{}/edit'.format(content_id))
 
 
 def destroy(content_id):
-    global contents
-    if content_id not in contents:
+    db = get_db()
+    content = db.execute(
+        'SELECT * FROM contents WHERE id = ?', (content_id, )
+    ).fetchone()
+    if not content:
         raise NotFound
 
-    contents.pop(content_id)
+    db.execute('DELETE FROM contents WHERE id = ?', (content_id, ))
+    db.commit()
 
     return Response(status=204)
 
 
 app = Cezve()
+app.wsgi_app = TeardownMiddleware(app.wsgi_app, [close_db])
+app.wsgi_app = local_manager.make_middleware(app.wsgi_app)
 app.route('/', index)
 app.route('/create', create)
 app.route('/', store, methods=['post'])

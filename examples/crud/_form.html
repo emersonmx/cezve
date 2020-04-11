@@ -1,4 +1,4 @@
-{% set content = content if content else {} %}
+{% set content = dict(content) if content else {} %}
 {% set title = content.get('title', '') %}
 {% set body = content.get('body', '') %}
 <div>
